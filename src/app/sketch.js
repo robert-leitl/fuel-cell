@@ -5,6 +5,9 @@ import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
 import CustomShaderMaterial from 'three-custom-shader-material/vanilla';
 import { ArcballControl } from '../libs/arcball-control';
 
+import liquidVert from './shader/liquid.vert.glsl';
+import liquidFrag from './shader/liquid.frag.glsl';
+
 // the target duration of one frame in milliseconds
 const TARGET_FRAME_DURATION_MS = 16;
 
@@ -34,6 +37,9 @@ let _isDev,
     controls,
     glbScene,
     hdrEquiMap,
+    glassMesh,
+    liquidMesh,
+    liquidMaterial,
     viewportSize;
 
 function init(canvas, onInit = null, isDev = false, pane = null) {
@@ -72,6 +78,8 @@ function setupScene(canvas) {
     scene = new THREE.Scene();
     glbScene.scale.multiplyScalar(0.03);
     scene.add(glbScene);
+    liquidMesh = glbScene.getObjectByName('liquid');
+    glassMesh = glbScene.getObjectByName('glass');
 
     renderer = new THREE.WebGLRenderer( { canvas, antialias: true } );
     renderer.sortObjects = true;
@@ -93,6 +101,33 @@ function setupScene(canvas) {
     controls = new ArcballControl(renderer.domElement);
 
     scene.environment = hdrEquiMapRT.texture;
+
+
+    liquidMaterial = new CustomShaderMaterial({
+        baseMaterial: THREE.MeshPhysicalMaterial,
+        vertexShader: liquidVert,
+        fragmentShader: liquidFrag,
+        silent: true, // Disables the default warning if true
+        uniforms: {},
+        defines: {
+            'PHYSICAL': ''
+        },
+        envMap: hdrEquiMapRT.texture,
+        color: 0x0000ff,
+        roughness: 0.,
+        transmission: 0.5,
+        thickness: 30,
+        ior: 1.3,
+        transparent: true,
+        specularIntensity: 0.1
+    });
+    liquidMesh.material = liquidMaterial;
+
+    glassMesh.visible = false;
+
+    console.log(glbScene);
+
+
 
     _isInitialized = true;
 }
