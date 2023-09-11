@@ -7,6 +7,7 @@ import { ArcballControl } from '../libs/arcball-control';
 
 import liquidVert from './shader/liquid.vert.glsl';
 import liquidFrag from './shader/liquid.frag.glsl';
+import { SecondOrderSystemQuaternion } from './util/second-order-quaternion';
 
 // the target duration of one frame in milliseconds
 const TARGET_FRAME_DURATION_MS = 16;
@@ -25,6 +26,7 @@ let frames = 0;
 let deltaFrames = 0;
 
 const settings = {
+    levelValue: 0.3
 }
 
 // module variables
@@ -42,11 +44,19 @@ let _isDev,
     liquidMaterial,
     viewportSize;
 
+let plane, soq, level = new THREE.Vector3(0, 1, 0), liqBounds = new THREE.Box3(), smoothLevelValue = 0;
+
+
+
 function init(canvas, onInit = null, isDev = false, pane = null) {
     _isDev = isDev;
     _pane = pane;
 
     if (pane) {
+        pane.addBinding(settings, 'levelValue', {
+            min: 0.1,
+            max: 1,
+          });
     }
 
     const manager = new THREE.LoadingManager();
@@ -72,11 +82,10 @@ function init(canvas, onInit = null, isDev = false, pane = null) {
 
 function setupScene(canvas) {
     camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, .2, .4);
-    camera.position.set(0, 0.02, 0.31);
+    camera.position.set(0, 0.04, 0.31);
     camera.lookAt(new THREE.Vector3());
 
     scene = new THREE.Scene();
-    glbScene.scale.multiplyScalar(0.03);
     scene.add(glbScene);
     liquidMesh = glbScene.getObjectByName('liquid');
     glassMesh = glbScene.getObjectByName('glass');
@@ -103,37 +112,73 @@ function setupScene(canvas) {
     scene.environment = hdrEquiMapRT.texture;
 
 
+    liquidMesh.geometry.computeBoundingBox();
+    liqBounds = liquidMesh.geometry.boundingBox;
+
+
     liquidMaterial = new CustomShaderMaterial({
         baseMaterial: THREE.MeshPhysicalMaterial,
         vertexShader: liquidVert,
         fragmentShader: liquidFrag,
         silent: true, // Disables the default warning if true
-        uniforms: {},
+        uniforms: {
+            uLevel: { value: level },
+            uGroundLevelOffset: { value: new THREE.Vector3() },
+            uDims: { value: liqBounds.getSize(new THREE.Vector3())}
+        },
         defines: {
-            'PHYSICAL': ''
+            'PHYSICAL': '',
+            'IS_LIQUID': ''
         },
         envMap: hdrEquiMapRT.texture,
         color: 0x0000ff,
         roughness: 0.,
-        transmission: 0.5,
-        thickness: 30,
-        ior: 1.3,
-        transparent: true,
-        specularIntensity: 0.1
+        //transmission: 0.5,
+        //thickness: 30,
+        //ior: 1.3,
+        //transparent: true,
+        specularIntensity: 0.1,
+        side: THREE.DoubleSide
     });
     liquidMesh.material = liquidMaterial;
 
-    glassMesh.visible = false;
+    THREE.ShaderChunk.normal_fragment_begin = 
+        `
+        ${THREE.ShaderChunk.normal_fragment_begin}
+        
+        #ifdef IS_LIQUID
+            if (!gl_FrontFacing) {
+                normal = normalize(uLevel);
+                normal.xy -= length(modelPos.xy * 10.) * attenuation;
+                geometryNormal = normal;
+            }
+        #endif
+        `;
 
-    console.log(glbScene);
+        glassMesh.material.thickness = .009;
+        glassMesh.material.specularIntensity = 0.1;
+        glassMesh.material.roughness = 0.;
+        glassMesh.material.transmission = 1;
+    //glassMesh.visible = false;
 
+    //scene.add(new THREE.AxesHelper());
 
+    const planeGeo = new THREE.PlaneGeometry(3.08, 3.08);
+    const angle = Math.PI / 2;
+    const axis = new THREE.Vector3(Math.sin(angle / 2), 0, 0);
+    planeGeo.applyQuaternion((new THREE.Quaternion(axis.x, axis.y, axis.z, Math.cos(angle/2))));
+    plane = new THREE.Mesh(
+        planeGeo,
+        new THREE.MeshBasicMaterial({ side: THREE.DoubleSide})
+    );
+
+    soq = new SecondOrderSystemQuaternion(.8, 0.6, 1, [0, 0, 0, 1]);
 
     _isInitialized = true;
 }
 
 function run(t = 0) {
-    deltaTimeMS = Math.min(TARGET_FRAME_DURATION_MS, t - time);
+    deltaTimeMS = Math.max(0.001, Math.min(TARGET_FRAME_DURATION_MS, t - time));
     time = t;
     deltaFrames = deltaTimeMS / TARGET_FRAME_DURATION_MS;
     frames += deltaFrames;
@@ -155,11 +200,44 @@ function resize() {
 function animate() {
     if (controls) {
         controls.update(deltaTimeMS);
-        scene.quaternion.copy(controls.orientation);
+        glbScene.quaternion.copy(controls.orientation);
+
+        const qi = controls.orientation.clone();
+        qi.invert();
+        soq.updateApprox(deltaTimeMS * 0.001, qi.toArray([]));
+        plane.quaternion.fromArray(soq.value);
+
+
+        let lq = new THREE.Quaternion().fromArray(soq.value);
+        const n = new THREE.Vector3(0, 1, 0).applyQuaternion(lq);
+
+        let levelValue = settings.levelValue;
+        smoothLevelValue += (levelValue - smoothLevelValue) / 10;
+
+        let w = (n.dot(new THREE.Vector3(0, 1, 0)));
+        w = 1 - w * w;
+        w = (0.5 - smoothLevelValue) * w;
+        levelValue = smoothLevelValue + w * 0.7;
+
+
+        levelValue = levelValue * (liqBounds.max.y - liqBounds.min.y);
+        n.multiplyScalar(levelValue);
+        level.copy(n);
+        
+
+        const v = new THREE.Vector3(0, liqBounds.min.y, 0);
+        v.applyQuaternion(lq);
+        liquidMaterial.uniforms.uGroundLevelOffset.value.copy(v);
+
     }
 }
 
 function render() {
+    /*renderer.clear();
+    renderer.autoClear = false;
+    liquidMesh.material.side = THREE.BackSide;
+    renderer.render( scene, camera );
+    liquidMesh.material.side = THREE.FrontSide;*/
     renderer.render( scene, camera );
 }
 
