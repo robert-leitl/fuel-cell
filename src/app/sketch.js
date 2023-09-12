@@ -156,7 +156,7 @@ function setupScene(canvas) {
         `;
 
         glassMesh.material.thickness = .009;
-        glassMesh.material.specularIntensity = 0.1;
+        glassMesh.material.specularIntensity = 0.2;
         glassMesh.material.roughness = 0.;
         glassMesh.material.transmission = 1;
     //glassMesh.visible = false;
@@ -172,7 +172,7 @@ function setupScene(canvas) {
         new THREE.MeshBasicMaterial({ side: THREE.DoubleSide})
     );
 
-    soq = new SecondOrderSystemQuaternion(.8, 0.6, 1, [0, 0, 0, 1]);
+    soq = new SecondOrderSystemQuaternion(.8, 0.4, 1, [0, 0, 0, 1]);
 
     _isInitialized = true;
 }

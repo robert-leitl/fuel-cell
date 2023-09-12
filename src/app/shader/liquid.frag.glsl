@@ -17,7 +17,7 @@ void main() {
     attenuation += (1. - smoothstep(0., 1., -levelDist * 4. + 0.8 )) * 5.;
 
     vec3 color = vec3(0., 0.1, 1.);
-    color *= attenuation + .1;
+    color *= attenuation + .2;
 
     vec3 norm = normalize(vNormal);
 
@@ -25,5 +25,5 @@ void main() {
 
     //color = vec3(norm);
 
-    csm_DiffuseColor = vec4(color, 1.);
+    csm_DiffuseColor = vec4(color * 2., 1.);
 }

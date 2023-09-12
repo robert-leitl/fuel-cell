@@ -68,7 +68,7 @@ export class ArcballControl {
             // the intensity of the pointer to reach the new position (lower value --> slower movement)
             const INTENSITY = 0.3 * timeScale;
             // the factor to amplify the rotation angle (higher value --> faster rotation)
-            const ANGLE_AMPLIFICATION = 5 / timeScale;
+            const ANGLE_AMPLIFICATION = 10 / timeScale;
 
             // get only a part of the pointer movement to smooth out the movement
             const midPointerPos = (new Vector2()).subVectors(this.pointerPos, this.previousPointerPos);
