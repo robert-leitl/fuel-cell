@@ -44,7 +44,8 @@ let _isDev,
     liquidMaterial,
     viewportSize;
 
-let plane, soq, level = new THREE.Vector3(0, 1, 0), liqBounds = new THREE.Box3(), smoothLevelValue = 0;
+let plane, soq, surfacePlane = new THREE.Vector4(),
+ levelNormal = new THREE.Vector3(0, 1, 0), liqBounds = new THREE.Box3(), smoothLevelValue = 0;
 
 
 
@@ -122,7 +123,7 @@ function setupScene(canvas) {
         fragmentShader: liquidFrag,
         silent: true, // Disables the default warning if true
         uniforms: {
-            uLevel: { value: level },
+            uSurfacePlane: { value: surfacePlane },
             uGroundLevelOffset: { value: new THREE.Vector3() },
             uDims: { value: liqBounds.getSize(new THREE.Vector3())}
         },
@@ -148,8 +149,7 @@ function setupScene(canvas) {
         
         #ifdef IS_LIQUID
             if (!gl_FrontFacing) {
-                normal = normalize(uLevel);
-                normal.xy -= length(modelPos.xy * 10.) * attenuation;
+                normal = surfaceNormal;
                 geometryNormal = normal;
             }
         #endif
@@ -172,7 +172,7 @@ function setupScene(canvas) {
         new THREE.MeshBasicMaterial({ side: THREE.DoubleSide})
     );
 
-    soq = new SecondOrderSystemQuaternion(.8, 0.4, 1, [0, 0, 0, 1]);
+    soq = new SecondOrderSystemQuaternion(1.8, 0.5, 1, [0, 0, 0, 1]);
 
     _isInitialized = true;
 }
@@ -210,20 +210,17 @@ function animate() {
 
         let lq = new THREE.Quaternion().fromArray(soq.value);
         const n = new THREE.Vector3(0, 1, 0).applyQuaternion(lq);
+        levelNormal.copy(n);
 
         let levelValue = settings.levelValue;
         smoothLevelValue += (levelValue - smoothLevelValue) / 10;
-
         let w = (n.dot(new THREE.Vector3(0, 1, 0)));
         w = 1 - w * w;
         w = (0.5 - smoothLevelValue) * w;
         levelValue = smoothLevelValue + w * 0.7;
+        levelValue = liqBounds.min.y + levelValue * (liqBounds.max.y - liqBounds.min.y);
 
-
-        levelValue = levelValue * (liqBounds.max.y - liqBounds.min.y);
-        n.multiplyScalar(levelValue);
-        level.copy(n);
-        
+        surfacePlane.set(levelNormal.x, levelNormal.y, levelNormal.z, -levelValue);
 
         const v = new THREE.Vector3(0, liqBounds.min.y, 0);
         v.applyQuaternion(lq);
