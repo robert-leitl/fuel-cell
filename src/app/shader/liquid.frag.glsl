@@ -31,6 +31,23 @@ float sdRoundedCylinder( vec3 p, float ra, float rb, float h )
   return min(max(d.x,d.y),0.0) + length(max(d,0.0)) - rb;
 }
 
+float map(vec3 p) {
+    return sdRoundedCylinder(p, uDims.x * 0.1, uDims.x * 0.3, uDims.y * 0.34);
+}
+
+vec3 calcNormal( in vec3 p ) // for function f(p)
+{
+    const float h = 0.0001;      // replace by an appropriate value
+    #define ZERO (min(int(uDims.x),0)) // non-constant zero
+    vec3 n = vec3(0.0);
+    for( int i=ZERO; i<4; i++ )
+    {
+        vec3 e = 0.5773*(2.0*vec3((((i+3)>>1)&1),((i>>1)&1),(i&1))-1.0);
+        n += e*map(p+e*h);
+    }
+    return normalize(n);
+}
+
 void main() {
     vec3 modelPos = vModelPosition;
     float levelDist = sdPlane(modelPos, uSurfacePlane.xyz, uSurfacePlane.w) / uDims.x;
@@ -53,14 +70,22 @@ void main() {
         vec3 V = normalize(C - modelPos);
         float intersectDist = plaIntersect(modelPos, V, uSurfacePlane);
         vec3 surfacePoint = modelPos + intersectDist * V;
+
         //float capsDist = sdCappedCylinder(surfacePoint, uDims.y * 0.4, uDims.x * 0.4);
-        float capsDist = sdRoundedCylinder(surfacePoint, uDims.x * 0.1, uDims.x * 0.3, uDims.y * 0.35);
+        float capsDist = map(surfacePoint);
         float surfaceOffsetStrength = smoothstep(0., 1., capsDist * 30.);
-        vec3 surfaceCenter = -uSurfacePlane.xyz * uSurfacePlane.w;
-        vec3 surfaceOffsetPoint = normalize(surfaceCenter - surfacePoint);
+
+        vec3 sdNorm = calcNormal(surfacePoint);
 
         surfaceNormal = uSurfacePlane.xyz;
-        surfaceNormal += surfaceOffsetPoint * surfaceOffsetStrength * 2.;
+        surfaceNormal += sdNorm * surfaceOffsetStrength * 2.;
+
+        float surfaceDiffuse = max(0., dot(surfaceNormal, normalize(uSurfacePlane.xyz)));
+        //color *= surfaceDiffuse;
+
+        color += vec3(0., 0.4, 1.) * surfaceOffsetStrength;
+
+        //color = vec3(surfaceOffsetStrength);
     }
 
     csm_DiffuseColor = vec4(color, 1.);
