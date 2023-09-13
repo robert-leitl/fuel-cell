@@ -7,6 +7,8 @@ import { ArcballControl } from '../libs/arcball-control';
 
 import liquidVert from './shader/liquid.vert.glsl';
 import liquidFrag from './shader/liquid.frag.glsl';
+import glassVert from './shader/glass.vert.glsl';
+import glassFrag from './shader/glass.frag.glsl';
 import { SecondOrderSystemQuaternion } from './util/second-order-quaternion';
 
 // the target duration of one frame in milliseconds
@@ -42,6 +44,7 @@ let _isDev,
     glassMesh,
     liquidMesh,
     liquidMaterial,
+    glassMaterial,
     viewportSize;
 
 let plane, soq, surfacePlane = new THREE.Vector4(),
@@ -138,7 +141,7 @@ function setupScene(canvas) {
         //thickness: 30,
         //ior: 1.3,
         //transparent: true,
-        specularIntensity: 0.1,
+        specularIntensity: 0.2,
         side: THREE.DoubleSide
     });
     liquidMesh.material = liquidMaterial;
@@ -155,10 +158,26 @@ function setupScene(canvas) {
         #endif
         `;
 
-        glassMesh.material.thickness = .009;
-        glassMesh.material.specularIntensity = 0.2;
-        glassMesh.material.roughness = 0.;
-        glassMesh.material.transmission = 1;
+    glassMaterial = new CustomShaderMaterial({
+        baseMaterial: THREE.MeshPhysicalMaterial,
+        vertexShader: glassVert,
+        fragmentShader: glassFrag,
+        silent: true, // Disables the default warning if true
+        uniforms: {
+        },
+        defines: {
+            'PHYSICAL': '',
+            'IS_GLASS': ''
+        },
+        envMap: hdrEquiMapRT.texture,
+        roughness: 0.,
+        transmission: .1,
+        thickness: .009,
+        transparent: true,
+        specularIntensity: 0.5,
+    });
+    glassMesh.material = glassMaterial;
+
     //glassMesh.visible = false;
 
     //scene.add(new THREE.AxesHelper());

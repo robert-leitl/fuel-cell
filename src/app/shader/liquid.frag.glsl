@@ -54,15 +54,15 @@ void main() {
     
     if (levelDist > 0.) discard;
 
-    float attenuation = 1. - smoothstep(0., 1., -levelDist + 0.7 );
-    attenuation += (1. - smoothstep(0., 1., -levelDist * 4. + 0.8 )) * 5.;
+    float attenuation = (1. - smoothstep(0., 1., -levelDist + 0.7 )) * 5.;
+    attenuation += (1. - smoothstep(0., 1., -levelDist * 4. + 0.8 )) * 10.;
 
     vec3 color = vec3(0., 0.2, 2.);
-    color *= attenuation + .1;
+    color *= attenuation + .2;
 
     vec3 surfaceNormal = vec3(0.);
     if (!gl_FrontFacing) {
-        color = vec3(0., 0.4, 2.2);
+        color = vec3(0., 0.4, 2.2) * 2.;
 
         // find the surface intersection
         mat4 inversModelMatrix = inverse(modelMatrix);
@@ -80,10 +80,10 @@ void main() {
         surfaceNormal = uSurfacePlane.xyz;
         surfaceNormal += sdNorm * surfaceOffsetStrength * 2.;
 
-        float surfaceDiffuse = max(0., dot(surfaceNormal, normalize(uSurfacePlane.xyz)));
+        //float surfaceDiffuse = max(0., dot(surfaceNormal, normalize(uSurfacePlane.xyz)));
         //color *= surfaceDiffuse;
 
-        color += vec3(0., 0.4, 1.) * surfaceOffsetStrength;
+        //color += surfaceOffsetStrength * 0.3;
 
         //color = vec3(surfaceOffsetStrength);
     }
