@@ -5,5 +5,5 @@ in vec2 vUv;
 
 void main(void) {
   vec4 glassMist = texture(uGlassMist, vUv);
-  csm_DiffuseColor = vec4(1., 1., 1., 1.);
+  csm_DiffuseColor = vec4(vec3(1.), 1.);
 }

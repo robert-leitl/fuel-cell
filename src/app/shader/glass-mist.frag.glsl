@@ -1,4 +1,6 @@
 uniform sampler2D uColor;
+uniform sampler2D uIceBump;
+uniform sampler2D uGlassBump;
 uniform vec4 uSurfacePlane;
 uniform vec3 uDims;
 
@@ -16,11 +18,22 @@ float sdPlane( vec3 p, vec3 n, float h )
 void main() {
     vec3 modelPos = vModelPosition;
     float levelDist = sdPlane(modelPos, uSurfacePlane.xyz, uSurfacePlane.w + 0.00001) / uDims.x;
-    levelDist *= -1.;
-    levelDist = max(0., levelDist);
+    levelDist = min(1., max(0., levelDist * -1.));
 
-    float prevValue = texture(uColor, vUv).r;
-    float value = prevValue + (levelDist - prevValue) * 0.02;
     
-    outColor = vec4(value);
+    vec4 iceBump = texture(uIceBump, vUv);
+    vec4 glassBump = texture(uGlassBump, vUv);
+    float glassBumpValue = glassBump.r * 0.05;
+    vec4 target = vec4(levelDist, 0., 0., (1. - levelDist) * 0.5);
+
+
+    target.r = levelDist * iceBump.r; // roughness
+    target.g = (levelDist * (iceBump.r * 0.4 + 0.6)) * 0.5 + 0.02; // transmission
+    target.b = mix(glassBumpValue, iceBump.r, levelDist); // bump
+
+    vec4 prevValue = texture(uColor, vUv);
+    vec4 value = prevValue + (target - prevValue) * 0.015;
+    value.r = prevValue.r + (target.r - prevValue.r) * 0.01;
+
+    outColor = value;
 }

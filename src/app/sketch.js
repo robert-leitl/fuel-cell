@@ -47,6 +47,8 @@ let _isDev,
     liquidMesh,
     liquidMaterial,
     glassMaterial,
+    glassBumpMap,
+    iceBumpMap,
     viewportSize;
 
 let plane, soq, surfacePlane = new THREE.Vector4(),
@@ -74,6 +76,12 @@ function init(canvas, onInit = null, isDev = false, pane = null) {
 
     hdrEquiMap = new RGBELoader(manager)
         .load((new URL('../assets/env03.hdr', import.meta.url)).toString())
+
+    iceBumpMap = new THREE.TextureLoader(manager)
+        .load((new URL('../assets/bump.jpg', import.meta.url)).toString())
+
+    glassBumpMap = new THREE.TextureLoader(manager)
+        .load((new URL('../assets/height.jpg', import.meta.url)).toString())
 
     manager.onLoad = () => {
         setupScene(canvas);
@@ -169,12 +177,14 @@ function setupScene(canvas) {
             'IS_GLASS': ''
         },
         envMap: hdrEquiMapRT.texture,
-        roughness: 1.,
+        roughness: 1.5,
         transmission: 1,
         iridescence: 0,
         thickness: .009,
+        bumpScale: .0003,
         transparent: true,
         specularIntensity: 0.5,
+        reflectivity: 0.5
     });
     glassMesh.material = glassMaterial;
     glassMesh.layers.enable(5);
@@ -184,9 +194,22 @@ function setupScene(canvas) {
         `
         material.transmission = transmission;
         #ifdef IS_GLASS
-            material.transmission = 1. -  glassMist.r * 0.1;
+            material.transmission = 1. - glassMist.g * 0.1;
         #endif
         `
+    );
+
+    THREE.ShaderChunk.bumpmap_pars_fragment = THREE.ShaderChunk.bumpmap_pars_fragment.replace(
+        'float Hll = bumpScale * texture2D( bumpMap, vBumpMapUv ).x',
+        'float Hll = bumpScale * texture2D( bumpMap, vBumpMapUv ).z'
+    );
+    THREE.ShaderChunk.bumpmap_pars_fragment = THREE.ShaderChunk.bumpmap_pars_fragment.replace(
+        'float dBx = bumpScale * texture2D( bumpMap, vBumpMapUv + dSTdx ).x - Hll;',
+        'float dBx = bumpScale * texture2D( bumpMap, vBumpMapUv + dSTdx ).z - Hll;'
+    );
+    THREE.ShaderChunk.bumpmap_pars_fragment = THREE.ShaderChunk.bumpmap_pars_fragment.replace(
+        'float dBy = bumpScale * texture2D( bumpMap, vBumpMapUv + dSTdy ).x - Hll;',
+        'float dBy = bumpScale * texture2D( bumpMap, vBumpMapUv + dSTdy ).z - Hll;'
     );
 
     glassMistMaterial = new THREE.ShaderMaterial({
@@ -197,6 +220,8 @@ function setupScene(canvas) {
         depthTest: false,
         depthWrite: false,
         uniforms: {
+            uIceBump: { value: iceBumpMap },
+            uGlassBump: { value: glassBumpMap },
             uColor: { value: null },
             uSurfacePlane: { value: surfacePlane },
             uDims: { value: liqBounds.getSize(new THREE.Vector3())}
@@ -290,6 +315,8 @@ function render() {
     renderer.render( scene, camera );
     glassMesh.material = glassMaterial;
     glassMaterial.roughnessMap = rt.texture;
+    glassMaterial.bumpMap = rt.texture;
+    glassMaterial.specularIntensityMap = rt.texture;
     glassMaterial.uniforms.uGlassMist.value = rt.texture;
     glassMesh.material.needsUpdate = true;
     camera.layers.set(0);
