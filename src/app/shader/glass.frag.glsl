@@ -1,6 +1,9 @@
+uniform sampler2D uGlassMist;
+
 in vec3 vModelPosition;
 in vec2 vUv;
 
 void main(void) {
-  csm_DiffuseColor = vec4(vUv, 0., 1.);
+  vec4 glassMist = texture(uGlassMist, vUv);
+  csm_DiffuseColor = vec4(1., 1., 1., 1.);
 }

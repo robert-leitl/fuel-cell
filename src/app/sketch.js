@@ -9,6 +9,8 @@ import liquidVert from './shader/liquid.vert.glsl';
 import liquidFrag from './shader/liquid.frag.glsl';
 import glassVert from './shader/glass.vert.glsl';
 import glassFrag from './shader/glass.frag.glsl';
+import glassMistVert from './shader/glass-mist.vert.glsl';
+import glassMistFrag from './shader/glass-mist.frag.glsl';
 import { SecondOrderSystemQuaternion } from './util/second-order-quaternion';
 
 // the target duration of one frame in milliseconds
@@ -50,7 +52,7 @@ let _isDev,
 let plane, soq, surfacePlane = new THREE.Vector4(),
  levelNormal = new THREE.Vector3(0, 1, 0), liqBounds = new THREE.Box3(), smoothLevelValue = 0;
 
-
+let rtIndex, glassMistRTs, glassMistMaterial;
 
 function init(canvas, onInit = null, isDev = false, pane = null) {
     _isDev = isDev;
@@ -137,10 +139,6 @@ function setupScene(canvas) {
         envMap: hdrEquiMapRT.texture,
         color: 0x0000ff,
         roughness: 0.,
-        //transmission: 0.5,
-        //thickness: 30,
-        //ior: 1.3,
-        //transparent: true,
         specularIntensity: 0.2,
         side: THREE.DoubleSide
     });
@@ -164,19 +162,46 @@ function setupScene(canvas) {
         fragmentShader: glassFrag,
         silent: true, // Disables the default warning if true
         uniforms: {
+            uGlassMist: { value: null }
         },
         defines: {
             'PHYSICAL': '',
             'IS_GLASS': ''
         },
         envMap: hdrEquiMapRT.texture,
-        roughness: 0.,
-        transmission: .1,
+        roughness: 1.,
+        transmission: 1,
+        iridescence: 0,
         thickness: .009,
         transparent: true,
         specularIntensity: 0.5,
     });
     glassMesh.material = glassMaterial;
+    glassMesh.layers.enable(5);
+
+    THREE.ShaderChunk.transmission_fragment = THREE.ShaderChunk.transmission_fragment.replace(
+        'material.transmission = transmission;',
+        `
+        material.transmission = transmission;
+        #ifdef IS_GLASS
+            material.transmission = 1. -  glassMist.r * 0.1;
+        #endif
+        `
+    );
+
+    glassMistMaterial = new THREE.ShaderMaterial({
+        glslVersion: THREE.GLSL3,
+        vertexShader: glassMistVert,
+        fragmentShader: glassMistFrag,
+        side: THREE.DoubleSide,
+        depthTest: false,
+        depthWrite: false,
+        uniforms: {
+            uColor: { value: null },
+            uSurfacePlane: { value: surfacePlane },
+            uDims: { value: liqBounds.getSize(new THREE.Vector3())}
+        }
+    });
 
     //glassMesh.visible = false;
 
@@ -192,6 +217,12 @@ function setupScene(canvas) {
     );
 
     soq = new SecondOrderSystemQuaternion(1.8, 0.5, 1, [0, 0, 0, 1]);
+
+    glassMistRTs = [
+        new THREE.WebGLRenderTarget(1024, 1024, {depthBuffer: false, type: THREE.HalfFloatType, format: THREE.RGBAFormat, internalFormat: 'RGBA16F'}),
+        new THREE.WebGLRenderTarget(1024, 1024, {depthBuffer: false, type: THREE.HalfFloatType, format: THREE.RGBAFormat, internalFormat: 'RGBA16F'})
+    ];
+    rtIndex = 0;
 
     _isInitialized = true;
 }
@@ -249,11 +280,21 @@ function animate() {
 }
 
 function render() {
-    /*renderer.clear();
-    renderer.autoClear = false;
-    liquidMesh.material.side = THREE.BackSide;
+
+    const rt = glassMistRTs[rtIndex];
+    renderer.setRenderTarget(rt);
+    rtIndex = (rtIndex + 1) % 2;
+    glassMistMaterial.uniforms.uColor.value = glassMistRTs[rtIndex].texture;
+    camera.layers.set(5);
+    glassMesh.material = glassMistMaterial;
     renderer.render( scene, camera );
-    liquidMesh.material.side = THREE.FrontSide;*/
+    glassMesh.material = glassMaterial;
+    glassMaterial.roughnessMap = rt.texture;
+    glassMaterial.uniforms.uGlassMist.value = rt.texture;
+    glassMesh.material.needsUpdate = true;
+    camera.layers.set(0);
+
+    renderer.setRenderTarget(null);
     renderer.render( scene, camera );
 }
 
