@@ -28,9 +28,9 @@ void main() {
 
 
     target.r = levelDist * iceBump.r; // roughness
-    target.g = (levelDist * (iceBump.r * 0.4 + 0.6)) * 0.5 + 0.02; // transmission
+    target.g = (levelDist * (iceBump.r * 0.4 + 0.6)) * 0.5 + 0.01; // transmission
     target.b = mix(glassBumpValue, iceBump.r, levelDist); // bump
-    target.a = (1. - levelDist) * 0.5 + glassBumpValue * 100. * (1. - levelDist); // specular intensity
+    target.a = (1. - levelDist) * 0.5 + glassBumpValue * 20. * (1. - levelDist); // specular intensity
 
     vec4 prevValue = texture(uColor, vUv);
     vec4 value = prevValue + (target - prevValue) * 0.015;

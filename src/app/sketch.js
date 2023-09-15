@@ -57,6 +57,8 @@ let plane, soq, surfacePlane = new THREE.Vector4(),
 
 let rtIndex, glassMistRTs, glassMistMaterial;
 
+let smokeTex, smokeMeshes, smokeGroup;
+
 function init(canvas, onInit = null, isDev = false, pane = null) {
     _isDev = isDev;
     _pane = pane;
@@ -76,7 +78,7 @@ function init(canvas, onInit = null, isDev = false, pane = null) {
     }, null, console.log);
 
     hdrEquiMap = new RGBELoader(manager)
-        .load((new URL('../assets/env02.hdr', import.meta.url)).toString())
+        .load((new URL('../assets/env04.hdr', import.meta.url)).toString())
 
     iceBumpMap = new THREE.TextureLoader(manager)
         .load((new URL('../assets/bump.jpg', import.meta.url)).toString())
@@ -86,6 +88,9 @@ function init(canvas, onInit = null, isDev = false, pane = null) {
 
     glassThicknessMap = new THREE.TextureLoader(manager)
         .load((new URL('../assets/thickness.png', import.meta.url)).toString())
+
+    smokeTex = new THREE.TextureLoader(manager)
+        .load((new URL('../assets/smoke.png', import.meta.url)).toString())
 
     manager.onLoad = () => {
         setupScene(canvas);
@@ -254,6 +259,41 @@ function setupScene(canvas) {
     ];
     rtIndex = 0;
 
+
+    const smokeMaterial = new THREE.MeshLambertMaterial({
+        map: smokeTex,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+        blending: THREE.CustomBlending,
+        blendEquation: THREE.AddEquation,
+        blendSrc: THREE.SrcAlphaFactor,
+        blendDst: THREE.OneMinusSrcAlphaFactor
+    });
+    smokeGroup = new THREE.Group();
+    scene.add(smokeGroup);
+    smokeMeshes = new THREE.InstancedMesh(
+        new THREE.PlaneGeometry(0.4, 0.4),
+        smokeMaterial,
+        5
+    );
+    for(let i=0; i<smokeMeshes.count; ++i) {
+        const m = new THREE.Matrix4();
+        smokeMeshes.getMatrixAt(i, m);
+
+        m.makeRotationZ(Math.random() * Math.PI * 2)
+        m.multiply(
+            new THREE.Matrix4().makeTranslation(new THREE.Vector3(
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1,
+                0
+            ).multiplyScalar(.07)));
+        
+            smokeMeshes.setMatrixAt(i, m);
+    }
+    smokeGroup.add(smokeMeshes);
+
+
     _isInitialized = true;
 }
 
@@ -306,6 +346,18 @@ function animate() {
         v.applyQuaternion(lq);
         liquidMaterial.uniforms.uGroundLevelOffset.value.copy(v);
 
+
+        for(let i=0; i<smokeMeshes.count; ++i) {
+            const m = new THREE.Matrix4();
+            smokeMeshes.getMatrixAt(i, m);
+    
+            m.multiply(
+                new THREE.Matrix4().makeRotationZ(0.0005 * (i > smokeMeshes.count / 2 ? -i : i))
+            );
+            
+            smokeMeshes.setMatrixAt(i, m);
+        }
+        smokeMeshes.instanceMatrix.needsUpdate = true;
     }
 }
 
