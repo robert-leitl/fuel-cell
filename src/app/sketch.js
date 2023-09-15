@@ -30,7 +30,7 @@ let frames = 0;
 let deltaFrames = 0;
 
 const settings = {
-    levelValue: 0.3
+    levelValue: 0.5
 }
 
 // module variables
@@ -49,6 +49,7 @@ let _isDev,
     glassMaterial,
     glassBumpMap,
     iceBumpMap,
+    glassThicknessMap,
     viewportSize;
 
 let plane, soq, surfacePlane = new THREE.Vector4(),
@@ -75,13 +76,16 @@ function init(canvas, onInit = null, isDev = false, pane = null) {
     }, null, console.log);
 
     hdrEquiMap = new RGBELoader(manager)
-        .load((new URL('../assets/env03.hdr', import.meta.url)).toString())
+        .load((new URL('../assets/env02.hdr', import.meta.url)).toString())
 
     iceBumpMap = new THREE.TextureLoader(manager)
         .load((new URL('../assets/bump.jpg', import.meta.url)).toString())
 
     glassBumpMap = new THREE.TextureLoader(manager)
         .load((new URL('../assets/height.jpg', import.meta.url)).toString())
+
+    glassThicknessMap = new THREE.TextureLoader(manager)
+        .load((new URL('../assets/thickness.png', import.meta.url)).toString())
 
     manager.onLoad = () => {
         setupScene(canvas);
@@ -107,8 +111,8 @@ function setupScene(canvas) {
     renderer = new THREE.WebGLRenderer( { canvas, antialias: true } );
     renderer.sortObjects = true;
     renderer.useLegacyLights = false;
-    renderer.toneMapping = THREE.NoToneMapping;
-    renderer.toneMappingExposure = 1;
+    renderer.toneMapping = THREE.LinearToneMapping;
+    renderer.toneMappingExposure = 1.;
     THREE.ColorManagement.enabled = true;
     document.body.appendChild( renderer.domElement );
     viewportSize = new THREE.Vector2(renderer.domElement.clientWidth, renderer.domElement.clientHeight);
@@ -180,7 +184,8 @@ function setupScene(canvas) {
         roughness: 1.5,
         transmission: 1,
         iridescence: 0,
-        thickness: .009,
+        thickness: .02,
+        thicknessMap: glassThicknessMap,
         bumpScale: .0003,
         transparent: true,
         specularIntensity: 0.5,
@@ -194,7 +199,7 @@ function setupScene(canvas) {
         `
         material.transmission = transmission;
         #ifdef IS_GLASS
-            material.transmission = 1. - glassMist.g * 0.1;
+            material.transmission = 1. - glassMist.g * 0.3;
         #endif
         `
     );
@@ -244,8 +249,8 @@ function setupScene(canvas) {
     soq = new SecondOrderSystemQuaternion(1.8, 0.5, 1, [0, 0, 0, 1]);
 
     glassMistRTs = [
-        new THREE.WebGLRenderTarget(1024, 1024, {depthBuffer: false, type: THREE.HalfFloatType, format: THREE.RGBAFormat, internalFormat: 'RGBA16F'}),
-        new THREE.WebGLRenderTarget(1024, 1024, {depthBuffer: false, type: THREE.HalfFloatType, format: THREE.RGBAFormat, internalFormat: 'RGBA16F'})
+        new THREE.WebGLRenderTarget(1024, 1024, {depthBuffer: false, type: THREE.HalfFloatType, format: THREE.RGBAFormat, internalFormat: 'RGBA16F', magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter}),
+        new THREE.WebGLRenderTarget(1024, 1024, {depthBuffer: false, type: THREE.HalfFloatType, format: THREE.RGBAFormat, internalFormat: 'RGBA16F', magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter})
     ];
     rtIndex = 0;
 
