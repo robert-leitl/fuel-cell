@@ -23,7 +23,7 @@ void main() {
     
     vec4 iceBump = texture(uIceBump, vUv);
     vec4 glassBump = texture(uGlassBump, vUv);
-    float glassBumpValue = glassBump.r * 0.05;
+    float glassBumpValue = glassBump.r * 0.15;
     vec4 target = vec4(levelDist, 0., 0., 0.);
 
 
@@ -35,7 +35,7 @@ void main() {
     vec4 prevValue = texture(uColor, vUv);
     vec4 value = prevValue + (target - prevValue) * 0.015;
     value.r = prevValue.r + (target.r - prevValue.r) * 0.01;
-    value.g = prevValue.g + (target.g - prevValue.g) * 0.0095;
+    value.g = prevValue.g + (target.g - prevValue.g) * 0.0295;
     value.b = prevValue.b + (target.b - prevValue.b) * 0.02;
 
     outColor = value;

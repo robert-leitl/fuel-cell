@@ -6,7 +6,7 @@ import Stats from 'three/addons/libs/stats.module.js';
 const queryString = window.location.search;
 const urlParams = new URLSearchParams(queryString);
 const hasDebugParam = urlParams.get('debug');
-const isDev = import.meta.env.MODE === 'development';
+const isDev = false; //import.meta.env.MODE === 'development';
 let pane;
 
 if (isDev) {

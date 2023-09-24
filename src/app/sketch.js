@@ -4,6 +4,10 @@ import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
 import CustomShaderMaterial from 'three-custom-shader-material/vanilla';
 import { ArcballControl } from '../libs/arcball-control';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import liquidVert from './shader/liquid.vert.glsl';
 import liquidFrag from './shader/liquid.frag.glsl';
@@ -40,6 +44,7 @@ let _isDev,
     camera,
     scene,
     renderer,
+    composer,
     controls,
     glbScene,
     hdrEquiMap,
@@ -105,7 +110,7 @@ function init(canvas, onInit = null, isDev = false, pane = null) {
 
 function setupScene(canvas) {
     camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, .2, .4);
-    camera.position.set(0, 0.04, 0.31);
+    camera.position.set(0, 0.04, 0.32);
     camera.lookAt(new THREE.Vector3());
 
     scene = new THREE.Scene();
@@ -116,8 +121,8 @@ function setupScene(canvas) {
     renderer = new THREE.WebGLRenderer( { canvas, antialias: true } );
     renderer.sortObjects = true;
     renderer.useLegacyLights = false;
-    renderer.toneMapping = THREE.LinearToneMapping;
-    renderer.toneMappingExposure = 1.;
+    //renderer.toneMapping = THREE.LinearToneMapping;
+    //renderer.toneMappingExposure = 1.;
     THREE.ColorManagement.enabled = true;
     document.body.appendChild( renderer.domElement );
     viewportSize = new THREE.Vector2(renderer.domElement.clientWidth, renderer.domElement.clientHeight);
@@ -204,7 +209,7 @@ function setupScene(canvas) {
         `
         material.transmission = transmission;
         #ifdef IS_GLASS
-            material.transmission = 1. - glassMist.g * 0.3;
+            material.transmission = 1. - glassMist.g * 0.4;
         #endif
         `
     );
@@ -294,6 +299,21 @@ function setupScene(canvas) {
     smokeGroup.add(smokeMeshes);
 
 
+    const renderScene = new RenderPass( scene, camera );
+
+    const bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
+    bloomPass.threshold = 0.1;
+    bloomPass.strength = .13;
+    bloomPass.radius = 0.9;
+
+    const outputPass = new OutputPass();
+
+    composer = new EffectComposer( renderer );
+    composer.addPass( renderScene );
+    composer.addPass( bloomPass );
+    composer.addPass( outputPass );
+
+
     _isInitialized = true;
 }
 
@@ -313,7 +333,10 @@ function resize() {
     if (resizeRendererToDisplaySize(renderer)) {
         renderer.getSize(viewportSize);
         camera.aspect = viewportSize.x / viewportSize.y;
+
         camera.updateProjectionMatrix();
+
+        composer.setSize( viewportSize.x, viewportSize.y );
     }
 }
 
@@ -379,7 +402,8 @@ function render() {
     camera.layers.set(0);
 
     renderer.setRenderTarget(null);
-    renderer.render( scene, camera );
+    //renderer.render( scene, camera );
+    composer.render();
 }
 
 export default {

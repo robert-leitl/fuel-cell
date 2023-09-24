@@ -57,12 +57,12 @@ void main() {
     float attenuation = (1. - smoothstep(0., 1., -levelDist + 0.7 )) * 5.;
     attenuation += (1. - smoothstep(0., 1., -levelDist * 4. + 0.8 )) * 10.;
 
-    vec3 color = vec3(0., 0.2, 2.);
+    vec3 color = vec3(0., 0.2, 2.) * 1.5;
     color *= attenuation + .2;
 
     vec3 surfaceNormal = vec3(0.);
     if (!gl_FrontFacing) {
-        color = vec3(0., 0.4, 2.2) * 2.;
+        color = vec3(0., 0.4, 2.2) * 1.5;
 
         // find the surface intersection
         mat4 inversModelMatrix = inverse(modelMatrix);
@@ -71,7 +71,6 @@ void main() {
         float intersectDist = plaIntersect(modelPos, V, uSurfacePlane);
         vec3 surfacePoint = modelPos + intersectDist * V;
 
-        //float capsDist = sdCappedCylinder(surfacePoint, uDims.y * 0.4, uDims.x * 0.4);
         float capsDist = map(surfacePoint);
         float surfaceOffsetStrength = smoothstep(0., 1., capsDist * 30.);
 
@@ -79,14 +78,7 @@ void main() {
 
         surfaceNormal = uSurfacePlane.xyz;
         surfaceNormal += sdNorm * surfaceOffsetStrength * 2.;
-
-        //float surfaceDiffuse = max(0., dot(surfaceNormal, normalize(uSurfacePlane.xyz)));
-        //color *= surfaceDiffuse;
-
-        //color += surfaceOffsetStrength * 0.3;
-
-        //color = vec3(surfaceOffsetStrength);
     }
 
-    csm_DiffuseColor = vec4(color, 1.);
+    csm_DiffuseColor = vec4(color * 2., 1.);
 }
